@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+
+    <div style="display: flex">
+        <div class="dropdownX"></div>
+        <div class="dropdownY"></div>
+    </div>
+    
+    <svg class="chart"></svg>
+    <svg class="chart2"></svg>
+
+
+    <script
+  src="https://code.jquery.com/jquery-3.4.1.js"
+  integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU="
+  crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.6.0/d3.js"></script>
+    <script>
+
+    const data = d3.csv('https://vizhub.com/curran/datasets/auto-mpg.csv').then(data=> {
+        
+        data.forEach( d => {
+            d.acceleration = +d.acceleration;
+            d.cylinders = +d.cylinders;
+            d.displacement = +d.displacement;
+            d.horsepower = +d.horsepower;
+            d.mpg = +d.mpg;
+            d.weight = +d.weight;
+            d.year = +d.year;
+        })
+
+        console.log(data)
+
+        return data
+
+    }).then( data => {
+
+        const chartWidth = 960,
+                chartHeight = 700;
+
+        const margin = {top : 50, left: 80, right : 30, bottom: 50};
+
+        const innerWidth = chartWidth - margin.left - margin.right;
+        const innerHeight = chartHeight - margin.top - margin.bottom;
+
+        const space = d3.select('.chart')
+                                .attr('width', chartWidth)
+                                .attr('height', chartHeight);
+
+        //real dimension of the graph - definition svg
+        let chart = space.append('g')
+                    .attr('class' , 'gruppo')
+                    .attr('width', innerWidth)
+                    .attr('height', innerHeight)
+                    .attr('transform', `translate ( ${margin.left} , ${margin.top})`);  
+
+
+        //define which value is on the x axis and the y axis
+        let x = 'weight',
+            y = 'horsepower';
+            
+        let dataX = d => d[x],
+            dataY = d => d[y];
+        
+        //define scale X and X axis - append X axis
+        let xScale = d3.scaleLinear()
+                        .domain(d3.extent(data, dataX))
+                        .range([0, innerWidth]);
+
+        let xAxis = d3.axisBottom(xScale).ticks(9,"s");
+
+        chart.append('g').call(xAxis).attr('transform', `translate(0, ${innerHeight})`).attr('class','axisX');
+
+        //define scale Y -  Y axis - append Y axis
+        let yScale = d3.scaleLinear()
+                        .domain(d3.extent(data, dataY))
+                        .range([innerHeight,0])
+                        .nice();
+
+        let yAxis = d3.axisLeft(yScale).ticks(9);
+
+        chart.append('g').call(yAxis).attr('class','axisY');
+
+
+        const fill = d3.scaleLinear().domain([0, d3.max(data, dataX)]).range(['blue', 'purple']);
+
+        //visualize data
+        const circles = chart.selectAll('circle')
+                        .data(data)
+                        .enter().append('circle')
+                        .transition()
+                        .duration(500)
+                        .attr('cx', d => xScale(dataX(d)))
+                        .attr('cy', d => yScale(dataY(d)))
+                        .attr('r', d => xScale(dataX(d)) / 50)
+                        .style('opacity' , 0.3)
+                        .attr('fill', d => fill(dataY(d)));
+
+
+
+        //dropdown menu
+        const menuX = d3.select('.dropdownX'),
+              menuY = d3.select('.dropdownY');
+
+        const createMenu = (data,menu) => {
+
+            const keys = d3.keys(data[0]);
+
+            //delete keys with string value in data
+            let filtered = keys.filter((value, index, arr) => value != 'name' && value != 'origin');
+            console.log(keys);
+
+
+            menu.append("select")
+                .selectAll("option")
+                    .data(filtered)
+                    .enter()
+                    .append("option")
+                    .attr("value", d => d)
+                    .text(d => d);
+
+            if(menu == menuX){
+                $(".dropdownX select option[value='" + x +"']").attr("selected","selected");
+            }
+            else{
+                $(".dropdownY select option[value='" + y +"']").attr("selected","selected"); 
+            }
+
+
+            return menu
+
+        }
+
+        function getOption(menu){
+            menu.on('change', function() {
+                    let selectedUnit = d3.select(this)
+                    .select("select")
+                    .property("value");
+
+                    console.log('old x',x)
+                    console.log('old y',y)
+                    
+
+                    if(menu == menuX){
+                        x = selectedUnit;
+                        console.log('new x',selectedUnit)
+                        updataChart(data, selectedUnit, y)
+                    }
+                    else{
+                        y = selectedUnit;
+                        console.log('new y',selectedUnit)
+                        updataChart(data, x, selectedUnit)
+                    }
+                    
+                });  
+        }
+
+    
+        createMenu(data,menuX)
+        createMenu(data,menuY)
+
+        getOption(menuX)
+        getOption(menuY)
+    
+
+        const updataChart = (data, x, y) => {
+            dataX = d => d[x],
+            dataY = d => d[y];
+
+            //define scale X and X axis - append X axis
+            xScale = d3.scaleLinear()
+                            .domain(d3.extent(data, dataX))
+                            .range([0, innerWidth]);
+            xAxis = d3.axisBottom(xScale).ticks(9);
+
+            //define scale Y -  Y axis - append Y axis
+            yScale = d3.scaleLinear()
+                            .domain(d3.extent(data, dataY))
+                            .range([innerHeight,0])
+                            .nice();
+            yAxis = d3.axisLeft(yScale).ticks(9,"s");
+
+            const fill = d3.scaleLinear().domain([0, d3.max(data, dataX)]).range(['blue', 'purple']);
+
+            console.log(xScale.domain());
+            console.log(yScale.domain());
+
+            // chart.selectAll('circle').exit().remove()
+
+            chart.selectAll('circle')
+                            .transition()
+                            .duration(2000)
+                            .attr('cx', d => xScale(dataX(d)))
+                            .attr('cy', d => yScale(dataY(d)))
+                            .attr('r', d => xScale(dataX(d)) / 50)
+                            .style('opacity' , 0.3)
+                            .attr('fill', d => fill(dataY(d)));
+
+            chart.select('.axisX').call(xAxis);
+            chart.select('.axisY').call(yAxis);
+        }
+
+    
+    })//end then
+
+
+
+
+
+
+
+    </script>
+</body>
+</html>
